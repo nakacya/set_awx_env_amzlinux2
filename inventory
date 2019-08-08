@@ -1,0 +1,4 @@
+make_awx ansible_host=Your_AWX_host
+[all:vars]
+ansible_ssh_user=AWX_Login_user(Use sudo)
+ansible_ssh_private_key_file=ssh_private_key

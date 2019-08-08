@@ -1,0 +1,122 @@
+- hosts: all
+  gather_facts: yes
+  become: yes
+
+  tasks:
+
+    - name: yum install yum -y install gcc zlib-devel bzip2 bzip2-devel readline readline-devel sqlite sqlite-devel openssl openssl-devel docker docker-compose git
+      yum:
+        lock_timeout: 60
+        name: "{{ packages }}"
+        state: latest
+      vars:
+        packages:
+        - yum-utils
+        - gcc
+        - zlib-devel
+        - bzip2
+        - bzip2-devel
+        - readline
+        - readline-devel
+        - sqlite
+        - sqlite-devel
+        - openssl
+        - openssl-devel
+        - docker
+        - docker-compose
+        - git
+
+    - name: shell install pyenv
+      shell: curl -L https://raw.githubusercontent.com/pyenv/pyenv-installer/master/bin/pyenv-installer | bash
+
+    - name: chenge ~/.bash_profile
+      shell: cat << 'EOS' >> ~/.bash_profile
+             export PATH="/root/.pyenv/bin:$PATH"
+             eval "$(pyenv init -)"
+             eval "$(pyenv virtualenv-init -)"
+             EOS
+
+    - name: chenge source
+      shell: ource ~/.bash_profile
+
+    - name: install python 3.6.9
+      shell: pyenv install 3.6.9
+
+    - name: pyenv 3.6.9
+      shell: pyenv global 3.6.9
+
+    - name: pip upgrade
+      shell: pip install pip upgrade
+
+    - name: pip install docker
+      shell: pip install docker --ignore-installed  requests
+      ignore_errors: True
+
+    - name: pip install  docker-compose
+      shell: pip install docker-compose --ignore-installed  requests
+      ignore_errors: True
+
+    - name: systemctl docker enable start
+      systemd:
+        state: started
+        enabled: yes
+        name: docker
+
+    - name: install ansible2
+      shell: sudo amazon-linux-extras install ansible2
+
+    - name: make swapfile 2G
+      shell: dd if=/dev/zero of=/swapfile bs=1M count=2048
+
+    - name: make swapfile
+      shell: chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile
+
+    - name: remove ansible awx dir
+      shell: mv /root/awx /root/awx_old
+
+    - name: git get ansible awx
+      git:
+        repo: 'https://github.com/ansible/awx'
+        dest: /root/awx
+
+    - name: remote yum update all?
+      pause: prompt="remote server yum update all? (y/n)"
+      register: yn
+
+    - name: yum all update
+      yum:
+        lock_timeout: 60
+        name: '*'
+        state: latest
+      when:  yn.user_input ==  'y'
+
+    - name: remote server reboot?
+      pause: prompt="remote server reboot ok? (y/n)"
+      register: yn
+
+    - name: machine reboot
+      reboot:
+        reboot_timeout: 600
+      when:  yn.user_input ==  'y'
+
+    - name: remote machi reboot wait
+      wait_for_connection:
+        connect_timeout: 180
+        sleep: 5
+        delay: 5
+        timeout: 180
+      when:  yn.user_input ==  'y'
+
+    - name: please login to the remote host
+      debug:
+        msg: " Please login to ssh {{ inventory_hostname }} "
+    - name: Change to Superuser
+      debug:
+        msg: " run 'sudo su'"
+    - name: Change dir
+      debug:
+        msg: " run 'cd /root/awx/installer'"
+    - name: run ansible installer
+      debug:
+        msg: " run 'ansible-playbook -i inventory install.yml'"
+
