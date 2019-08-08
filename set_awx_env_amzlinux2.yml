@@ -4,9 +4,8 @@
 
   tasks:
 
-    - name: yum install yum -y install gcc zlib-devel bzip2 bzip2-devel readline readline-devel sqlite sqlite-devel openssl openssl-devel docker docker-compose git
+    - name: yum install yum -y install gcc zlib-devel bzip2 bzip2-devel readline readline-devel sqlite sqlite-devel openssl openssl-devel docker git
       yum:
-        lock_timeout: 60
         name: "{{ packages }}"
         state: latest
       vars:
@@ -23,7 +22,6 @@
         - openssl
         - openssl-devel
         - docker
-        - docker-compose
         - git
 
     - name: shell install pyenv
@@ -37,7 +35,7 @@
              EOS
 
     - name: chenge source
-      shell: ource ~/.bash_profile
+      shell: source ~/.bash_profile
 
     - name: install python 3.6.9
       shell: pyenv install 3.6.9
@@ -85,7 +83,6 @@
 
     - name: yum all update
       yum:
-        lock_timeout: 60
         name: '*'
         state: latest
       when:  yn.user_input ==  'y'
@@ -95,11 +92,10 @@
       register: yn
 
     - name: machine reboot
-      reboot:
-        reboot_timeout: 600
+      shell: reboot
       when:  yn.user_input ==  'y'
 
-    - name: remote machi reboot wait
+    - name: remote machine reboot wait
       wait_for_connection:
         connect_timeout: 180
         sleep: 5
@@ -110,12 +106,15 @@
     - name: please login to the remote host
       debug:
         msg: " Please login to ssh {{ inventory_hostname }} "
+
     - name: Change to Superuser
       debug:
         msg: " run 'sudo su'"
+
     - name: Change dir
       debug:
         msg: " run 'cd /root/awx/installer'"
+
     - name: run ansible installer
       debug:
         msg: " run 'ansible-playbook -i inventory install.yml'"
