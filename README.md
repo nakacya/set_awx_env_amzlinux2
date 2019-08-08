@@ -9,6 +9,11 @@ Disk:Over 10GB
 
 How to use
 1: Change inventory
+
    "ansible_host=Your_AWX_host"
+
+
 2: run to ansible
+
+
     ansible -i inventory　set_awx_env_amzlinux2yml
