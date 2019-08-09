@@ -4,12 +4,11 @@
 
   tasks:
 
-    - name: yum install yum -y install gcc zlib-devel bzip2 bzip2-devel readline readline-devel sqlite sqlite-devel openssl openssl-devel docker git
+    - name: yum install gcc zlib-devel bzip2 bzip2-devel readline readline-devel sqlite sqlite-devel openssl openssl-devel docker git
       yum:
-        name: "{{ packages }}"
+        name: "{{ item }}"
         state: latest
-      vars:
-        packages:
+      with_items:
         - yum-utils
         - gcc
         - zlib-devel
@@ -24,53 +23,64 @@
         - docker
         - git
 
-    - name: shell install pyenv
-      shell: curl -L https://raw.githubusercontent.com/pyenv/pyenv-installer/master/bin/pyenv-installer | bash
+    - git: repo=git://github.com/pyenv/pyenv.git dest=/root/.pyenv accept_hostkey=yes
 
-    - name: chenge ~/.bash_profile
-      shell: cat << 'EOS' >> ~/.bash_profile
-             export PATH="/root/.pyenv/bin:$PATH"
-             eval "$(pyenv init -)"
-             eval "$(pyenv virtualenv-init -)"
-             EOS
-
-    - name: chenge source
-      shell: source ~/.bash_profile
-
-    - name: install python 3.6.9
-      shell: pyenv install 3.6.9
-
-    - name: pyenv 3.6.9
-      shell: pyenv global 3.6.9
-
+    - blockinfile:
+        path: /root/.bash_profile
+        block: |
+          export PYENV_ROOT="$HOME/.pyenv"
+          export PATH="$PYENV_ROOT/bin:$PATH"
+          eval "$(pyenv init -)"
+ 
+    - name: set pyrnv enviroment
+      shell: bash -lc "pyenv versions | grep {{ python_version }}"
+      register: pyenv_version
+      ignore_errors: yes
+      changed_when: False
+ 
+    - name:  install python {{ python_version }}
+      shell: bash -lc "pyenv install {{ python_version }}"
+      when: pyenv_version|failed
+ 
+    - shell: bash -lc "pyenv global {{ python_version }}"
+      when: pyenv_version|failed
+ 
+    - set_fact: ansible_python_interpreter=/root/.pyenv/shims/python
+ 
     - name: pip upgrade
-      shell: pip install pip upgrade
+      shell: /root/.pyenv/shims/pip install pip --upgrade
+      ignore_errors: yes
 
-    - name: pip install docker
-      shell: pip install docker --ignore-installed  requests
-      ignore_errors: True
-
-    - name: pip install  docker-compose
-      shell: pip install docker-compose --ignore-installed  requests
-      ignore_errors: True
-
+    - name: pip install docker docker-compose
+      pip:
+        name: "{{ item }}"
+        state: latest
+      with_items:
+        - docker
+        - docker-compose
+      ignore_errors: yes
+ 
     - name: systemctl docker enable start
       systemd:
         state: started
         enabled: yes
         name: docker
 
-    - name: install ansible2
-      shell: sudo amazon-linux-extras install ansible2
-
-    - name: make swapfile 2G
-      shell: dd if=/dev/zero of=/swapfile bs=1M count=2048
-
-    - name: make swapfile
-      shell: chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile
+    - name:  need swapfile ?
+      pause: prompt="need swap?(2GB) (y/n)"
+      register: yn
+    - shell: swapoff -a && rm -rf /swapfile
+    - shell: dd if=/dev/zero of=/swapfile bs=1M count=2048 && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile
+    - blockinfile:
+        path: /etc/fstab
+        block: |
+          /swapfile                                 swap                    swap    defaults        0 0
+      when:  yn.user_input ==  'y'
 
     - name: remove ansible awx dir
-      shell: mv /root/awx /root/awx_old
+      shell: rm -rf /root/awx_old
+    - shell: mv /root/awx /root/awx_old
+      ignore_errors: True
 
     - name: git get ansible awx
       git:
@@ -81,21 +91,32 @@
       pause: prompt="remote server yum update all? (y/n)"
       register: yn
 
+    - shell: bash -lc "pyenv local system"
     - name: yum all update
       yum:
         name: '*'
         state: latest
       when:  yn.user_input ==  'y'
 
-    - name: remote server reboot?
-      pause: prompt="remote server reboot ok? (y/n)"
+    - name: server reboot?
+      pause: prompt="server reboot ok? (y/n)"
       register: yn
 
     - name: machine reboot
       shell: reboot
       when:  yn.user_input ==  'y'
 
-    - name: remote machine reboot wait
+    - debug:
+        msg: " Please login to ssh {{ inventory_hostname }} "
+      when:  yn.user_input ==  'y'
+    - debug:
+        msg: " run 'sudo su'"
+      when:  yn.user_input ==  'y'
+    - debug:
+        msg: " run 'cd /root/awx/installer'"
+      when:  yn.user_input ==  'y'
+
+    - name: machine reboot wait
       wait_for_connection:
         connect_timeout: 180
         sleep: 5
@@ -103,19 +124,10 @@
         timeout: 180
       when:  yn.user_input ==  'y'
 
-    - name: please login to the remote host
-      debug:
-        msg: " Please login to ssh {{ inventory_hostname }} "
-
-    - name: Change to Superuser
-      debug:
-        msg: " run 'sudo su'"
-
-    - name: Change dir
-      debug:
+    - debug:
         msg: " run 'cd /root/awx/installer'"
-
-    - name: run ansible installer
-      debug:
+      when:  yn.user_input ==  'n'
+    - debug:
         msg: " run 'ansible-playbook -i inventory install.yml'"
+      when:  yn.user_input ==  'n'
 

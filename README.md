@@ -1,8 +1,8 @@
 # set_awx_env_amzlinux2
 
-Ansible AWX Enviroment Setting For Amazon Web Service Amazon Linux 2
+## Ansible AWX Enviroment Setting For Amazon Web Service Amazon Linux 2
 
-Requirement:
+# Requirement:
 
 instance: t3.small or more
 
@@ -11,14 +11,21 @@ Disk:Over 10GB
 
 How to use
 
-1: Change inventory
+1: Get git & ansible(amazon linux)
+
+```
+   yum install git
+   sudo amazon-linux-extras install ansible2
+```
+
+2: Change inventory
 
 ```
 vi inventory
    "ansible_host=Your_AWX_host"
 ```
 
-2: run to ansible
+3: run to ansible
 
 ```
     ansible -i inventory　set_awx_env_amzlinux2yml
