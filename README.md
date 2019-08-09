@@ -14,7 +14,7 @@ How to use
 1: Get git & ansible(amazon linux)
 
 ```
-   yum install git
+   sudo yum install git
    sudo amazon-linux-extras install ansible2
 ```
 
