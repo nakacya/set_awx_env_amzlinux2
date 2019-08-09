@@ -28,5 +28,5 @@ vi inventory
 3: run to ansible
 
 ```
-    ansible -i inventory　set_awx_env_amzlinux2yml
+    ansible -i inventory　set_awx_env_amzlinux2.yml
 ```
