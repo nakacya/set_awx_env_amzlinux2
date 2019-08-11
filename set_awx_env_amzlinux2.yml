@@ -66,19 +66,10 @@
         enabled: yes
         name: docker
 
-    - name:  need swapfile ?
-      pause: prompt="need swap?(2GB) (y/n)"
-      register: yn
-    - shell: swapoff -a && rm -rf /swapfile
-    - shell: dd if=/dev/zero of=/swapfile bs=1M count=2048 && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile
-    - blockinfile:
-        path: /etc/fstab
-        block: |
-          /swapfile                                 swap                    swap    defaults        0 0
-      when:  yn.user_input ==  'y'
-
     - name: remove ansible awx dir
-      shell: rm -rf /root/awx_old
+      file:
+        path: /root/awx_old
+        state: absent
     - shell: mv /root/awx /root/awx_old
       ignore_errors: True
 
@@ -87,15 +78,53 @@
         repo: 'https://github.com/ansible/awx'
         dest: /root/awx
 
+    - shell: bash -lc "pyenv local system"
+
+    - name: yum install certbot
+      yum:
+        name: "{{ item }}"
+        state: latest
+      with_items:
+        - python-virtualenv
+    - shell: wget -P /usr/local/sbin/ https://dl.eff.org/certbot-auto
+    - file:
+       path: /usr/local/sbin/certbot-auto
+       mode: 0700
+#X#    - get_url:
+#X#        url: https://dl.eff.org/certbot-auto
+#X#        dest: /usr/local/sbin/certbot-auto force=True
+#X#        mode: '0700'
+    - shell: /usr/local/sbin/certbot-auto --no-bootstrap --install-only
+
     - name: remote yum update all?
       pause: prompt="remote server yum update all? (y/n)"
       register: yn
 
-    - shell: bash -lc "pyenv local system"
     - name: yum all update
       yum:
         name: '*'
         state: latest
+      when:  yn.user_input ==  'y'
+
+    - shell: amazon-linux-extras install ansible2
+
+    - name: Start service docker
+      service:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name:  need swapfile ?
+      pause: prompt="need swap?(2GB) (y/n)"
+      register: yn
+    - shell: swapoff -a && rm -rf /swapfile
+      when:  yn.user_input ==  'y'
+    - shell: dd if=/dev/zero of=/swapfile bs=1M count=2048 && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile
+      when:  yn.user_input ==  'y'
+    - blockinfile:
+        path: /etc/fstab
+        block: |
+          /swapfile                                 swap                    swap    defaults        0 0
       when:  yn.user_input ==  'y'
 
     - name: server reboot?
