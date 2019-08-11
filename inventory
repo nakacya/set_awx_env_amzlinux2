@@ -1,5 +1,4 @@
-#X#make_awx ansible_host=localhost
-make_awx ansible_host=46.51.231.251
+make_awx ansible_host=localhost
 
 [all:vars]
 ansible_ssh_user=ec2-user
